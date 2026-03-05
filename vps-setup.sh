@@ -55,7 +55,7 @@ export XRAY_PBK=$(docker run --rm ghcr.io/xtls/xray-core x25519 -i "$XRAY_PIK" |
 export XRAY_SID=$(openssl rand -hex 8)
 export XRAY_UUID=$(docker run --rm ghcr.io/xtls/xray-core uuid)
 
-xray_setup {
+xray_setup() {
   mkdir -p /opt/xray-vps-setup
   cd /opt/xray-vps-setup
 
@@ -82,7 +82,7 @@ file_server"
   wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
 }
 
-xray_setup()
+xray_setup
 
 end_script() {
   cd /opt/xray-vps-setup
