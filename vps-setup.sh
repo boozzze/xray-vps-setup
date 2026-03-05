@@ -62,7 +62,8 @@ xray_setup() {
   # docker-compose.yml (xray + caddy)
   wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose" | envsubst > ./docker-compose.yml
 
-  mkdir -p xray caddy templates
+  # create directories before writing files
+  mkdir -p xray caddy/templates
 
   # base xray config (tcp-reality on 443)
   wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./xray/config.json
