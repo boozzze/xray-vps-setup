@@ -12,44 +12,12 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 apt-get update
-apt-get install -y idn dnsutils sudo jq
+apt-get install -y sudo jq
 
-# Read domain input
-read -ep "Enter your domain:"$'\n' input_domain
-export VLESS_DOMAIN=$(echo "$input_domain" | idn)
-
-SERVER_IPS=($(hostname -I))
-RESOLVED_IP=$(dig +short "$VLESS_DOMAIN" | tail -n1)
-
-if [ -z "$RESOLVED_IP" ]; then
-  echo "Warning: Domain has no DNS record"
-  read -ep "Are you sure? That domain has no DNS record. Continue? [y/N]"$'\n' prompt_response
-  if [[ ! "$prompt_response" =~ ^([yY])$ ]]; then
-    echo "Come back later"
-    exit 1
-  fi
-else
-  MATCH_FOUND=false
-  for server_ip in "${SERVER_IPS[@]}"; do
-    if [ "$RESOLVED_IP" == "$server_ip" ]; then
-      MATCH_FOUND=true
-      break
-    fi
-  done
-
-  if [ "$MATCH_FOUND" = true ]; then
-    echo "✓ DNS record points to this server ($RESOLVED_IP)"
-  else
-    echo "Warning: DNS record exists but points to different IP"
-    echo "  Domain resolves to: $RESOLVED_IP"
-    echo "  This server's IPs: ${SERVER_IPS[*]}"
-    read -ep "Continue anyway? [y/N]"$'\n' prompt_response
-    if [[ ! "$prompt_response" =~ ^([yY])$ ]]; then
-      echo "Come back later"
-      exit 1
-    fi
-  fi
-fi
+# Auto-generate domain: <ip>.cdn-one.org
+SERVER_IP=$(hostname -I | awk '{print $1}')
+export VLESS_DOMAIN="${SERVER_IP}.cdn-one.org"
+echo "Using domain: $VLESS_DOMAIN"
 
 # Enable BBR if not enabled
 if sysctl net.ipv4.tcp_congestion_control | grep -q bbr; then
@@ -79,7 +47,7 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 # Generate values for XRay
-export IP_CADDY=$(hostname -I | cut -d' ' -f1)
+export IP_CADDY=$SERVER_IP
 export CADDY_BASIC_AUTH=""
 
 export XRAY_PIK=$(docker run --rm ghcr.io/xtls/xray-core x25519 | head -n1 | cut -d' ' -f 2)
@@ -96,16 +64,16 @@ xray_setup() {
 
   mkdir -p xray caddy templates
 
-  # базовый xray config (tcp-reality на 443)
+  # base xray config (tcp-reality on 443)
   wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./xray/config.json
 
-  # xhttp inbound шаблон -> добавить в config
+  # xhttp inbound template -> append into config
   wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray_xhttp_inbound" | envsubst > ./xray/xhttp_inbound.json
   jq '.inbounds += [ input ]' ./xray/config.json ./xray/xhttp_inbound.json > ./xray/config_tmp.json
   mv ./xray/config_tmp.json ./xray/config.json
   rm ./xray/xhttp_inbound.json
 
-  # Caddyfile и страница
+  # Caddyfile and simple page
   wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/confluence_page" | envsubst > ./caddy/templates/index.html
   export CADDY_REVERSE="root * /srv
 file_server"
