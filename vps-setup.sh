@@ -63,7 +63,9 @@ xray_setup() {
   wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose" | envsubst > ./docker-compose.yml
 
   # create directories before writing files
-  mkdir -p xray caddy/templates
+  mkdir -p xray
+  mkdir -p caddy
+  mkdir -p caddy/templates
 
   # base xray config (tcp-reality on 443)
   wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./xray/config.json
@@ -75,6 +77,7 @@ xray_setup() {
   rm ./xray/xhttp_inbound.json
 
   # Simple HTML page for Caddy instead of confluence_page
+  mkdir -p ./caddy/templates
   echo '<!DOCTYPE html><html><head><title>Xray VPS</title></head><body><h1>Xray VPS is running</h1><p>TCP-REALITY:443 | XHTTP-REALITY:2087</p></body></html>' > ./caddy/templates/index.html
 
   export CADDY_REVERSE="root * /srv
