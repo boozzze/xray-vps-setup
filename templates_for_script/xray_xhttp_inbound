@@ -1,0 +1,38 @@
+{
+  "listen": "0.0.0.0",
+  "port": 2087,
+  "protocol": "vless",
+  "tag": "vless-xhttp-2087",
+  "settings": {
+    "clients": [
+      {
+        "id": "${XRAY_UUID}",
+        "flow": "xtls-rprx-vision"
+      }
+    ],
+    "decryption": "none"
+  },
+  "streamSettings": {
+    "network": "xhttp",
+    "security": "reality",
+    "realitySettings": {
+      "show": false,
+      "dest": "www.yahoo.com:443",
+      "serverNames": [
+        "www.yahoo.com"
+      ],
+      "publicKey": "${XRAY_PBK}",
+      "shortIds": [
+        "${XRAY_SID}"
+      ]
+    },
+    "xhttpSettings": {
+      "mode": "stream-up",
+      "scMaxEachPostBytes": 1000000.0,
+      "scMaxConcurrentPosts": 100.0,
+      "scMinPostsIntervalMs": 30.0,
+      "xPaddingBytes": "100-1000",
+      "noGRPCHeader": false
+    }
+  }
+}
