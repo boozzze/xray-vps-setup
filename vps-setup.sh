@@ -13,7 +13,7 @@ fi
 
 # Install idn 
 apt-get update
-apt-get install idn sudo dnsutils -y 
+apt-get install idn sudo dnsutils jq -y
 
 # Read domain input
 read -ep "Enter your domain:"$'\n' input_domain
@@ -127,7 +127,42 @@ export XRAY_SID=$(openssl rand -hex 8)
 export XRAY_UUID=$(docker run --rm ghcr.io/xtls/xray-core uuid)
 export XRAY_CFG="/usr/local/etc/xray/config.json"
 
-# Install marzban
+# Helper: inject xhttp inbound via jq (yq doesn't parse JSON strings as objects)
+inject_xhttp_inbound() {
+  local config_path=$1
+  local tmp=$(mktemp)
+  jq --arg uuid "$XRAY_UUID" --arg pik "$XRAY_PIK" --arg sid "$XRAY_SID" \
+    '.inbounds += [{
+      "listen": "0.0.0.0",
+      "port": 2087,
+      "protocol": "vless",
+      "tag": "vless-xhttp-2087",
+      "settings": {
+        "clients": [{"id": $uuid}],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "www.yahoo.com:443",
+          "serverNames": ["www.yahoo.com"],
+          "privateKey": $pik,
+          "shortIds": [$sid]
+        },
+        "xhttpSettings": {
+          "mode": "stream-up",
+          "scMaxEachPostBytes": 1000000,
+          "scMaxConcurrentPosts": 100,
+          "scMinPostsIntervalMs": 30,
+          "xPaddingBytes": "100-1000",
+          "noGRPCHeader": false
+        }
+      }
+    }]' "$config_path" > "$tmp" && mv "$tmp" "$config_path"
+}
+
 xray_setup() {
   mkdir -p /opt/xray-vps-setup
   cd /opt/xray-vps-setup
@@ -153,9 +188,7 @@ xray_setup() {
     export CADDY_REVERSE="reverse_proxy * unix//run/marzban/marzban.socket"
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./marzban/xray_config.json
-    # Inject xhttp inbound into marzban xray config
-    xhttp_inbound=$(wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray_xhttp_outbound" | envsubst)
-    yq eval ".inbounds += [$xhttp_inbound]" -i ./marzban/xray_config.json
+    inject_xhttp_inbound ./marzban/xray_config.json
   else
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose | envsubst > ./docker-compose.yml
     mkdir -p /opt/xray-vps-setup/caddy/templates
@@ -174,9 +207,7 @@ xray_setup() {
     mkdir -p xray caddy
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./xray/config.json
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
-    # Inject xhttp inbound into xray config
-    xhttp_inbound=$(wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray_xhttp_outbound" | envsubst)
-    yq eval ".inbounds += [$xhttp_inbound]" -i ./xray/config.json
+    inject_xhttp_inbound ./xray/config.json
   fi
 }
 
