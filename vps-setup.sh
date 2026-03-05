@@ -14,6 +14,7 @@ fi
 # Install idn 
 apt-get update
 apt-get install idn sudo dnsutils -y 
+apt-get install jq -y
 
 # Read domain input
 read -ep "Enter your domain:"$'\n' input_domain
@@ -171,6 +172,13 @@ xray_setup() {
     mkdir -p xray caddy
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./xray/config.json
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
+    # add XHTTP inbound on 2087
+    wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray_xhttp_inbound" | envsubst > ./xray/xhttp_inbound.json
+    # append xhttp inbound into main config
+    jq '.inbounds += [ input ]' ./xray/config.json ./xray/xhttp_inbound.json > ./xray/config_tmp.json
+    mv ./xray/config_tmp.json ./xray/config.json
+    rm ./xray/xhttp_inbound.json
+
   fi
 }
 
@@ -279,7 +287,11 @@ Password: $MARZBAN_PASS
     singbox_config=$(wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/sing_box_outbound" | envsubst)
 
     final_msg="Clipboard string format:
+xhttp_link="vless://$XRAY_UUID@$VLESS_DOMAIN:2087?mode=stream-up&security=reality&encryption=none&extra=%7B%22scMaxEachPostBytes%22%3A1000000.0%2C%22scMaxConcurrentPosts%22%3A100.0%2C%22scMinPostsIntervalMs%22%3A30.0%2C%22xPaddingBytes%22%3A%22100-1000%22%2C%22noGRPCHeader%22%3Afalse%7D&pbk=$XRAY_PBK&fp=chrome&type=xhttp&sni=www.yahoo.com&sid=$XRAY_SID#XHTTP-2087"
 vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=$XRAY_SID&spx=%2F&flow=xtls-rprx-vision
+
+XHTTP on 2087:
+$xhttp_link
 
 XRay outbound config:
 $xray_config
