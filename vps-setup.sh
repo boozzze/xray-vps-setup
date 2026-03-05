@@ -74,14 +74,15 @@ xray_setup() {
   mv ./xray/config_tmp.json ./xray/config.json
   rm ./xray/xhttp_inbound.json
 
-  # Caddyfile and simple page
-  wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/confluence_page" | envsubst > ./caddy/templates/index.html
+  # Simple HTML page for Caddy instead of confluence_page
+  echo '<!DOCTYPE html><html><head><title>Xray VPS</title></head><body><h1>Xray VPS is running</h1><p>TCP-REALITY:443 | XHTTP-REALITY:2087</p></body></html>' > ./caddy/templates/index.html
+
   export CADDY_REVERSE="root * /srv
 file_server"
   wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
 }
 
-xray_setup
+xray_setup()
 
 end_script() {
   cd /opt/xray-vps-setup
